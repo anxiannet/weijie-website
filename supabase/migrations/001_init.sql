@@ -9,15 +9,6 @@ begin
 end;
 $$;
 
-create or replace function private.is_admin()
-returns boolean
-language sql
-security definer
-set search_path = ''
-stable as $$
-  select exists(select 1 from public.profiles where id = (select auth.uid()) and role = 'admin');
-$$;
-
 create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   nickname text,
@@ -28,6 +19,15 @@ create table public.profiles (
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+create or replace function private.is_admin()
+returns boolean
+language sql
+security definer
+set search_path = ''
+stable as $$
+  select exists(select 1 from public.profiles where id = (select auth.uid()) and role = 'admin');
+$$;
 
 create table public.channels (
   id uuid primary key default gen_random_uuid(),

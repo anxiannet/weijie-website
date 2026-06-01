@@ -48,6 +48,8 @@ export type Info = {
   status: "published" | "hidden" | "draft";
   created_at: string;
   tag_ids: string[];
+  channel?: Channel;
+  tags?: Tag[];
 };
 
 export type Comment = {

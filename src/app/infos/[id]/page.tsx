@@ -10,8 +10,8 @@ import { channelById, getInfo, getInfoComments, tagsByIds } from "@/lib/data";
 export default async function InfoPage({ params }: { params: { id: string } }) {
   const [info, comments] = await Promise.all([getInfo(params.id), getInfoComments(params.id)]);
   if (!info) notFound();
-  const channel = channelById(info.channel_id);
-  const tags = tagsByIds(info.tag_ids);
+  const channel = info.channel ?? channelById(info.channel_id);
+  const tags = info.tags?.length ? info.tags : tagsByIds(info.tag_ids);
 
   return (
     <article className="space-y-5 px-4 py-6 md:px-8">

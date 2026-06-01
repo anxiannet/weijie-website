@@ -4,8 +4,8 @@ import { channelById, tagsByIds } from "@/lib/data";
 import { InfoTypeBadge } from "@/components/InfoTypeBadge";
 
 export function InfoCard({ info }: { info: Info }) {
-  const channel = channelById(info.channel_id);
-  const tags = tagsByIds(info.tag_ids).slice(0, 3);
+  const channel = info.channel ?? channelById(info.channel_id);
+  const tags = (info.tags?.length ? info.tags : tagsByIds(info.tag_ids)).slice(0, 3);
 
   return (
     <Link href={`/infos/${info.id}`} className="break-inside-avoid overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-slate-100">
