@@ -36,3 +36,13 @@ Seed：
 - `supabase/seed.sql`
 
 核心结构是 `channels -> tags -> infos`。
+
+## 项目文档
+
+- `AGENTS.md`：AI/开发助手协作规则
+- `CONTRIBUTING.md`：开发协作流程
+- `docs/DEVELOPMENT.md`：本地开发与代码结构
+- `docs/SUPABASE_RUNBOOK.md`：数据库迁移、RLS、排错手册
+- `docs/MVP.md`：MVP 产品范围
+- `docs/DATA_MODEL.md`：数据模型说明
+- `docs/ADMIN.md`：后台与审核说明
