@@ -8,6 +8,14 @@ import { SaveButton } from "@/components/SaveButton";
 import { TagBadge } from "@/components/TagBadge";
 import { channelById, getInfo, getInfoComments, tagsByIds } from "@/lib/data";
 
+function sectionTitleClass(line: string) {
+  if (line === "一句话答案") return "mt-6 rounded-xl border-l-4 border-amber-400 bg-amber-50 px-4 py-3 text-xl font-bold text-amber-900";
+  if (line === "处理步骤") return "mt-6 rounded-xl border-l-4 border-sky-500 bg-sky-50 px-4 py-3 text-xl font-bold text-sky-900";
+  if (line === "常见误区") return "mt-6 rounded-xl border-l-4 border-rose-500 bg-rose-50 px-4 py-3 text-xl font-bold text-rose-900";
+  if (line === "相关问题") return "mt-6 rounded-xl border-l-4 border-emerald-500 bg-emerald-50 px-4 py-3 text-xl font-bold text-emerald-900";
+  return "mt-6 rounded-xl border-l-4 border-teal-500 bg-teal-50 px-4 py-3 text-xl font-bold text-teal-900";
+}
+
 function renderInfoContent(content: string): ReactElement[] {
   const lines = content.split("\n");
   const elements: ReactElement[] = [];
@@ -16,10 +24,10 @@ function renderInfoContent(content: string): ReactElement[] {
   function flushList() {
     if (!listItems.length) return;
     elements.push(
-      <ul key={`list-${elements.length}`} className="my-3 space-y-2 rounded-xl bg-slate-50 px-5 py-4 text-slate-700">
+      <ul key={`list-${elements.length}`} className="my-3 space-y-2 rounded-2xl border border-teal-100 bg-teal-50/70 px-5 py-4 text-slate-750">
         {listItems.map((item, index) => (
           <li key={`${item}-${index}`} className="flex gap-2 leading-7">
-            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
+            <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-teal-500" />
             <span>{item}</span>
           </li>
         ))}
@@ -44,13 +52,13 @@ function renderInfoContent(content: string): ReactElement[] {
 
     if (line.startsWith("## ")) {
       flushList();
-      elements.push(<h2 key={index} className="mt-6 border-l-4 border-brand pl-3 text-xl font-bold text-slate-950">{line.slice(3)}</h2>);
+      elements.push(<h2 key={index} className={sectionTitleClass(line.slice(3))}>{line.slice(3)}</h2>);
       return;
     }
 
     if (line.startsWith("### ")) {
       flushList();
-      elements.push(<h3 key={index} className="mt-5 text-lg font-semibold text-slate-900">{line.slice(4)}</h3>);
+      elements.push(<h3 key={index} className="mt-5 rounded-lg bg-slate-100 px-3 py-2 text-lg font-semibold text-slate-900">{line.slice(4)}</h3>);
       return;
     }
 
@@ -61,7 +69,7 @@ function renderInfoContent(content: string): ReactElement[] {
 
     if (/^\d+[\.、]\s*/.test(line)) {
       flushList();
-      elements.push(<p key={index} className="rounded-lg bg-brand/5 px-4 py-3 font-medium leading-8 text-slate-800">{line}</p>);
+      elements.push(<p key={index} className="rounded-xl border border-sky-100 bg-sky-50 px-4 py-3 font-medium leading-8 text-sky-950">{line}</p>);
       return;
     }
 
@@ -69,13 +77,14 @@ function renderInfoContent(content: string): ReactElement[] {
 
     const isSectionTitle = ["一句话答案", "适用情况", "需要准备什么", "处理步骤", "常见误区", "相关问题", "更新时间"].includes(line);
     if (isSectionTitle) {
-      elements.push(<h2 key={index} className="mt-6 border-l-4 border-brand pl-3 text-xl font-bold text-slate-950">{line}</h2>);
+      elements.push(<h2 key={index} className={sectionTitleClass(line)}>{line}</h2>);
       return;
     }
 
     const isStepTitle = line.startsWith("第一步") || line.startsWith("第二步") || line.startsWith("第三步") || line.startsWith("第四步") || line.startsWith("第五步");
+    const hasWarning = line.includes("❌");
     elements.push(
-      <p key={index} className={isStepTitle ? "mt-4 font-semibold leading-8 text-slate-900" : "leading-8 text-slate-700"}>
+      <p key={index} className={hasWarning ? "rounded-xl bg-rose-50 px-4 py-2 leading-8 text-rose-900" : isStepTitle ? "mt-4 rounded-xl bg-sky-50 px-4 py-3 font-semibold leading-8 text-sky-950" : "leading-8 text-slate-700"}>
         {line}
       </p>
     );
