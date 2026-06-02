@@ -7,6 +7,83 @@ import { SaveButton } from "@/components/SaveButton";
 import { TagBadge } from "@/components/TagBadge";
 import { channelById, getInfo, getInfoComments, tagsByIds } from "@/lib/data";
 
+function renderInfoContent(content: string) {
+  const lines = content.split("\n");
+  const elements = [];
+  let listItems: string[] = [];
+
+  function flushList() {
+    if (!listItems.length) return;
+    elements.push(
+      <ul key={`list-${elements.length}`} className="my-3 space-y-2 rounded-xl bg-slate-50 px-5 py-4 text-slate-700">
+        {listItems.map((item, index) => (
+          <li key={`${item}-${index}`} className="flex gap-2 leading-7">
+            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    );
+    listItems = [];
+  }
+
+  lines.forEach((rawLine, index) => {
+    const line = rawLine.trim();
+
+    if (!line) {
+      flushList();
+      return;
+    }
+
+    if (line.startsWith("# ")) {
+      flushList();
+      elements.push(<h1 key={index} className="mt-6 text-3xl font-bold leading-tight text-slate-950">{line.slice(2)}</h1>);
+      return;
+    }
+
+    if (line.startsWith("## ")) {
+      flushList();
+      elements.push(<h2 key={index} className="mt-6 border-l-4 border-brand pl-3 text-xl font-bold text-slate-950">{line.slice(3)}</h2>);
+      return;
+    }
+
+    if (line.startsWith("### ")) {
+      flushList();
+      elements.push(<h3 key={index} className="mt-5 text-lg font-semibold text-slate-900">{line.slice(4)}</h3>);
+      return;
+    }
+
+    if (line.startsWith("* ") || line.startsWith("- ")) {
+      listItems.push(line.slice(2));
+      return;
+    }
+
+    if (/^\d+[\.、]\s*/.test(line)) {
+      flushList();
+      elements.push(<p key={index} className="rounded-lg bg-brand/5 px-4 py-3 font-medium leading-8 text-slate-800">{line}</p>);
+      return;
+    }
+
+    flushList();
+
+    const isSectionTitle = ["一句话答案", "适用情况", "需要准备什么", "处理步骤", "常见误区", "相关问题", "更新时间"].includes(line);
+    if (isSectionTitle) {
+      elements.push(<h2 key={index} className="mt-6 border-l-4 border-brand pl-3 text-xl font-bold text-slate-950">{line}</h2>);
+      return;
+    }
+
+    const isStepTitle = line.startsWith("第一步") || line.startsWith("第二步") || line.startsWith("第三步") || line.startsWith("第四步") || line.startsWith("第五步");
+    elements.push(
+      <p key={index} className={isStepTitle ? "mt-4 font-semibold leading-8 text-slate-900" : "leading-8 text-slate-700"}>
+        {line}
+      </p>
+    );
+  });
+
+  flushList();
+  return elements;
+}
+
 export default async function InfoPage({ params }: { params: { id: string } }) {
   const [info, comments] = await Promise.all([getInfo(params.id), getInfoComments(params.id)]);
   if (!info) notFound();
@@ -27,8 +104,8 @@ export default async function InfoPage({ params }: { params: { id: string } }) {
         <h1 className="text-3xl font-bold leading-tight">{info.title}</h1>
         <div className="flex flex-wrap gap-2">{tags.map((tag) => tag && <TagBadge key={tag.id} tag={tag} />)}</div>
       </header>
-      <section className="rounded-lg bg-white p-5 leading-8 text-slate-700 shadow-sm ring-1 ring-slate-100">
-        {info.content.split("\n").map((line) => <p key={line}>{line}</p>)}
+      <section className="rounded-2xl bg-white p-5 text-slate-700 shadow-sm ring-1 ring-slate-100">
+        {renderInfoContent(info.content)}
       </section>
       <section className="grid gap-3 rounded-lg bg-white p-4 text-sm shadow-sm ring-1 ring-slate-100 md:grid-cols-3">
         <p><span className="text-slate-500">价格：</span>{info.price_text ?? "未填写"}</p>
