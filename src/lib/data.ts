@@ -1,6 +1,6 @@
 import { unstable_noStore as noStore } from "next/cache";
 import { channels, comments, infos, tags } from "@/data/mockData";
-import { getSupabaseServerClient } from "@/lib/supabase/client";
+import { getSupabaseServerClient, getSupabaseServiceClient } from "@/lib/supabase/client";
 import type { Channel, Comment, Info, Tag } from "@/types";
 
 type InfoRow = Omit<Info, "tag_ids" | "channel" | "tags"> & {
@@ -24,6 +24,14 @@ function mapInfo(row: InfoRow): Info {
     tag_ids: infoTags.map((item) => item.tag_id).filter(Boolean) as string[],
     channel: row.channels ?? undefined,
     tags: infoTags.map((item) => item.tags).filter(Boolean) as Tag[]
+  };
+}
+
+function withMockRelations(info: Info): Info {
+  return {
+    ...info,
+    channel: channels.find((channel) => channel.id === info.channel_id),
+    tags: info.tag_ids.map((id) => tags.find((tag) => tag.id === id)).filter(Boolean) as Tag[]
   };
 }
 
@@ -101,12 +109,41 @@ export async function getInfos() {
   try {
     return (await fetchInfosFromDb()) ?? infos
       .filter((info) => info.status === "published" && info.moderation_status === "approved")
-      .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
+      .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))
+      .map(withMockRelations);
   } catch (error) {
     warnAndFallback("infos", error);
     return infos
       .filter((info) => info.status === "published" && info.moderation_status === "approved")
-      .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
+      .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))
+      .map(withMockRelations);
+  }
+}
+
+export async function getPendingInfos() {
+  noStore();
+  const supabase = getSupabaseServiceClient();
+
+  if (!supabase) {
+    return infos
+      .slice(0, 6)
+      .map((info) => withMockRelations({ ...info, moderation_status: "pending" }));
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("infos")
+      .select("*, info_tags(tag_id, tags(*)), channels(*)")
+      .eq("moderation_status", "pending")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    return ((data ?? []) as InfoRow[]).map(mapInfo);
+  } catch (error) {
+    warnAndFallback("pending infos", error);
+    return infos
+      .slice(0, 6)
+      .map((info) => withMockRelations({ ...info, moderation_status: "pending" }));
   }
 }
 
@@ -170,7 +207,10 @@ export async function getTagInfos(slug: string) {
 export async function getInfo(id: string) {
   noStore();
   const supabase = getSupabaseServerClient();
-  if (!supabase) return infos.find((info) => info.id === id) ?? null;
+  if (!supabase) {
+    const info = infos.find((item) => item.id === id);
+    return info ? withMockRelations(info) : null;
+  }
 
   try {
     const { data, error } = await supabase
@@ -182,7 +222,8 @@ export async function getInfo(id: string) {
     return data ? mapInfo(data as InfoRow) : null;
   } catch (error) {
     warnAndFallback("info", error);
-    return infos.find((info) => info.id === id) ?? null;
+    const info = infos.find((item) => item.id === id);
+    return info ? withMockRelations(info) : null;
   }
 }
 
