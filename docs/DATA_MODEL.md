@@ -18,6 +18,12 @@ MVP 的核心内容表。房源、二手、服务、美食、活动、新闻、�
 
 图片仍挂在 `infos.cover_url` 和 `infos.images` 上，文件存储在公开的 Supabase Storage bucket `info-images`。发布时第一张图片会写入 `cover_url` 作为信息卡片封面。
 
+地点标记也挂在 `infos` 上，不拆房源、商户或地点业务表。结构化字段包括 `location_name`、`location_address`、`location_postal`、`location_lat`、`location_lng`、`location_source`、`location_raw`；旧的 `location_text` 继续作为列表和兼容展示字段。
+
+## places_cache
+
+OneMap 搜索结果缓存表。`/api/places/search` 先按 query 查询 `places_cache`，未命中才通过服务端代理调用 OneMap Search API，并把标准化后的地点写入缓存。前端不直接访问 OneMap。
+
 ## info_tags
 
 Info 和 Tag 的多对多关系。一个 Info 至少应关联一个 Tag。

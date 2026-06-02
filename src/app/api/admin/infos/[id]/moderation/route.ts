@@ -1,15 +1,10 @@
 import { NextResponse } from "next/server";
-import { getSupabaseServerClientWithAuth, hasSupabaseEnv } from "@/lib/supabase/client";
+import { getSupabaseServiceClient, hasSupabaseEnv } from "@/lib/supabase/client";
+import { getAdminProfile } from "@/lib/supabase/server";
 
 type ModerationBody = {
   moderationStatus?: "approved" | "rejected";
 };
-
-function getBearerToken(request: Request) {
-  const authorization = request.headers.get("authorization");
-  if (!authorization?.startsWith("Bearer ")) return null;
-  return authorization.slice("Bearer ".length).trim();
-}
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   const body = (await request.json()) as ModerationBody;
@@ -26,23 +21,12 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     });
   }
 
-  const accessToken = getBearerToken(request);
-  if (!accessToken) {
-    return NextResponse.json({ error: "请先以管理员身份登录" }, { status: 401 });
-  }
+  const admin = await getAdminProfile();
+  if (!admin) return NextResponse.json({ error: "需要管理员权限" }, { status: 403 });
 
-  const supabase = getSupabaseServerClientWithAuth(accessToken);
+  const supabase = getSupabaseServiceClient();
   if (!supabase) {
-    return NextResponse.json({
-      id: params.id,
-      moderationStatus: body.moderationStatus,
-      mode: "mock"
-    });
-  }
-
-  const { data: authData, error: authError } = await supabase.auth.getUser();
-  if (authError || !authData.user) {
-    return NextResponse.json({ error: "登录状态无效，请重新登录" }, { status: 401 });
+    return NextResponse.json({ error: "服务端 Supabase 配置不完整。" }, { status: 500 });
   }
 
   const { data, error } = await supabase
@@ -64,7 +48,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     target_id: params.id,
     reason: "admin_review",
     status: body.moderationStatus,
-    reviewer_id: authData.user.id,
+    reviewer_id: admin.id,
     reviewed_at: new Date().toISOString()
   });
 

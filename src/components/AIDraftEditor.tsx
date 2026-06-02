@@ -2,22 +2,58 @@
 
 import { Sparkles } from "lucide-react";
 import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { Channel, Tag } from "@/types";
 
 export function AIDraftEditor({ channels, tags }: { channels: Channel[]; tags: Tag[] }) {
+  const router = useRouter();
   const [channel, setChannel] = useState(channels[0]?.name ?? "生活");
   const [tag, setTag] = useState(tags[0]?.name ?? "#新加坡生活");
   const [topic, setTopic] = useState("银行开户");
-  const [draft, setDraft] = useState<{ title: string; content: string; suggestedTags: string[] } | null>(null);
+  const [draft, setDraft] = useState<{ id?: string; title: string; content: string; suggestedTags: string[] } | null>(null);
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
   async function generate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setLoading(true);
+    setMessage("");
     const response = await fetch("/api/ai/draft", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ channel, tag, topicText: topic })
     });
-    setDraft(await response.json());
+    const result = await response.json();
+    setLoading(false);
+
+    if (!response.ok) {
+      setMessage(result.error ?? "生成失败。");
+      return;
+    }
+
+    setDraft(result);
+    setMessage(result.mode === "mock" ? "已生成 mock 草稿。" : "草稿已写入 ai_drafts。");
+  }
+
+  async function publish() {
+    if (!draft?.id) {
+      setMessage("mock 草稿不会写入数据库；配置 Supabase 后可发布。");
+      return;
+    }
+
+    setLoading(true);
+    setMessage("");
+    const response = await fetch(`/api/admin/ai-drafts/${draft.id}/publish`, { method: "POST" });
+    const result = await response.json();
+    setLoading(false);
+
+    if (!response.ok) {
+      setMessage(result.error ?? "发布失败。");
+      return;
+    }
+
+    setMessage("已发布为 Info。");
+    router.refresh();
   }
 
   return (
@@ -30,11 +66,12 @@ export function AIDraftEditor({ channels, tags }: { channels: Channel[]; tags: T
           {tags.map((item) => <option key={item.id}>{item.name}</option>)}
         </select>
         <input value={topic} onChange={(event) => setTopic(event.target.value)} className="rounded-lg border border-slate-200 px-3 py-3" />
-        <button className="inline-flex items-center justify-center gap-2 rounded-full bg-brand px-4 py-3 font-semibold text-white md:col-span-3">
+        <button disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-full bg-brand px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 md:col-span-3">
           <Sparkles className="h-4 w-4" />
-          生成 AI 草稿
+          {loading ? "处理中" : "生成 AI 草稿"}
         </button>
       </form>
+      {message ? <p className="text-sm font-medium text-slate-600">{message}</p> : null}
       {draft && (
         <section className="rounded-lg bg-white p-4 shadow-sm ring-1 ring-slate-100">
           <input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-3 text-lg font-semibold" />
@@ -42,7 +79,7 @@ export function AIDraftEditor({ channels, tags }: { channels: Channel[]; tags: T
           <div className="mt-3 flex flex-wrap gap-2">
             {draft.suggestedTags.map((item) => <span key={item} className="rounded-full bg-mist px-3 py-1 text-sm font-medium text-brand">{item}</span>)}
           </div>
-          <button className="mt-4 rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white">发布为 Info</button>
+          <button onClick={publish} disabled={loading} className="mt-4 rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">发布为 Info</button>
         </section>
       )}
     </div>

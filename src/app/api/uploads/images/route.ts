@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getSupabaseServiceClient } from "@/lib/supabase/client";
+import { getSupabaseServiceClient, hasSupabaseEnv } from "@/lib/supabase/client";
+import { getSupabaseCookieClient } from "@/lib/supabase/server";
 
 const bucketName = "info-images";
 const maxFiles = 6;
@@ -17,9 +18,22 @@ function extensionFor(file: File) {
 }
 
 export async function POST(request: Request) {
+  if (!hasSupabaseEnv) {
+    return NextResponse.json({ error: "未配置 Supabase Storage，暂不能上传图片。" }, { status: 503 });
+  }
+
+  const authClient = getSupabaseCookieClient();
+  const { data: authData, error: authError } = authClient
+    ? await authClient.auth.getUser()
+    : { data: { user: null }, error: null };
+
+  if (authError || !authData.user) {
+    return NextResponse.json({ error: "请先登录后再上传图片。" }, { status: 401 });
+  }
+
   const supabase = getSupabaseServiceClient();
   if (!supabase) {
-    return NextResponse.json({ error: "未配置 Supabase Storage，暂不能上传图片。" }, { status: 503 });
+    return NextResponse.json({ error: "服务端 Supabase 配置不完整。" }, { status: 500 });
   }
 
   if (!request.headers.get("content-type")?.includes("multipart/form-data")) {
@@ -50,7 +64,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "单张图片不能超过 5MB。" }, { status: 400 });
     }
 
-    const path = `infos/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${extensionFor(file)}`;
+    const path = `infos/${authData.user.id}/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${extensionFor(file)}`;
     const { error } = await supabase.storage.from(bucketName).upload(path, file, {
       contentType: file.type,
       upsert: false

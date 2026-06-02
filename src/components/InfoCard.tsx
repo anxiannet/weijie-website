@@ -23,7 +23,7 @@ export function InfoCard({ info }: { info: Info }) {
       <div className="space-y-2 p-3">
         <h3 className="line-clamp-2 text-[15px] font-semibold leading-snug text-slate-900">{info.title}</h3>
         <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
-          <span className="min-w-0 truncate">{info.location_text ?? channel?.name ?? "新加坡"}</span>
+          <span className="min-w-0 truncate">{info.location_name ?? info.location_text ?? channel?.name ?? "新加坡"}</span>
           <span className="inline-flex shrink-0 items-center gap-1">
             <Heart className="h-4 w-4" />
             {likes}

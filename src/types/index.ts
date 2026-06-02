@@ -2,6 +2,19 @@ export type Role = "user" | "admin" | "creator";
 export type InfoType = "note" | "rental" | "service" | "business" | "food" | "event" | "secondhand" | "guide" | "news" | "question";
 export type ModerationStatus = "pending" | "approved" | "rejected";
 
+export type Place = {
+  id?: string;
+  query?: string | null;
+  name: string;
+  address: string;
+  postal?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  source?: string | null;
+  category?: string | null;
+  raw?: unknown;
+};
+
 export type Profile = {
   id: string;
   nickname: string | null;
@@ -42,6 +55,13 @@ export type Info = {
   contact_text?: string | null;
   price_text?: string | null;
   location_text?: string | null;
+  location_name?: string | null;
+  location_address?: string | null;
+  location_postal?: string | null;
+  location_lat?: number | null;
+  location_lng?: number | null;
+  location_source?: string | null;
+  location_raw?: unknown;
   source_type: "user" | "admin" | "ai";
   is_ai_generated: boolean;
   moderation_status: ModerationStatus;

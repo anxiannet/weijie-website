@@ -1,7 +1,12 @@
+import { AdminAccessDenied } from "@/components/AdminAccessDenied";
 import { AIDraftEditor } from "@/components/AIDraftEditor";
 import { getChannels, getTags } from "@/lib/data";
+import { getAdminProfile } from "@/lib/supabase/server";
 
 export default async function AdminAIPage() {
+  const admin = await getAdminProfile();
+  if (!admin) return <AdminAccessDenied />;
+
   const [channels, tags] = await Promise.all([getChannels(), getTags()]);
   return (
     <div className="space-y-5 px-4 py-6 md:px-8">

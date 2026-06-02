@@ -1,3 +1,4 @@
+import { createBrowserClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 
 export const hasSupabaseEnv = Boolean(
@@ -10,7 +11,7 @@ export const hasSupabaseServiceEnv = Boolean(
 
 export function getSupabaseBrowserClient() {
   if (!hasSupabaseEnv) return null;
-  return createClient(
+  return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
@@ -24,24 +25,6 @@ export function getSupabaseServerClient() {
     {
       auth: {
         persistSession: false
-      }
-    }
-  );
-}
-
-export function getSupabaseServerClientWithAuth(accessToken: string) {
-  if (!hasSupabaseEnv) return null;
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      auth: {
-        persistSession: false
-      },
-      global: {
-        headers: {
-          Authorization: `Bearer ${accessToken}`
-        }
       }
     }
   );
