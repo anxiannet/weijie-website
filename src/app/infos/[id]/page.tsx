@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import { notFound } from "next/navigation";
 import { CommentList } from "@/components/CommentList";
 import { InfoTypeBadge } from "@/components/InfoTypeBadge";
@@ -7,9 +8,9 @@ import { SaveButton } from "@/components/SaveButton";
 import { TagBadge } from "@/components/TagBadge";
 import { channelById, getInfo, getInfoComments, tagsByIds } from "@/lib/data";
 
-function renderInfoContent(content: string) {
+function renderInfoContent(content: string): ReactElement[] {
   const lines = content.split("\n");
-  const elements = [];
+  const elements: ReactElement[] = [];
   let listItems: string[] = [];
 
   function flushList() {
