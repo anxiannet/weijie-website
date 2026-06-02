@@ -16,6 +16,8 @@
 
 MVP 的核心内容表。房源、二手、服务、美食、活动、新闻、攻略、求助都放在 `infos`。通过 `info_type` 区分内容形态，不拆复杂业务表。
 
+图片仍挂在 `infos.cover_url` 和 `infos.images` 上，文件存储在公开的 Supabase Storage bucket `info-images`。发布时第一张图片会写入 `cover_url` 作为信息卡片封面。
+
 ## info_tags
 
 Info 和 Tag 的多对多关系。一个 Info 至少应关联一个 Tag。

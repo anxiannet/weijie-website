@@ -24,6 +24,7 @@ type PublishBody = {
   infoType?: string;
   channelSlug?: string;
   tags?: string[];
+  imageUrls?: string[];
 };
 
 export async function POST(request: Request) {
@@ -47,6 +48,10 @@ export async function POST(request: Request) {
     .map((tag) => tag.trim())
     .filter(Boolean);
   const infoType = allowedTypes.has(body.infoType ?? "") ? body.infoType! : classified.infoType;
+  const imageUrls = (body.imageUrls ?? [])
+    .map((url) => url.trim())
+    .filter((url) => /^https?:\/\//.test(url))
+    .slice(0, 6);
 
   const supabase = getSupabaseServiceClient();
   if (!supabase) {
@@ -84,7 +89,8 @@ export async function POST(request: Request) {
       source_type: "user",
       moderation_status: "pending",
       status: "published",
-      images: []
+      cover_url: imageUrls[0] ?? null,
+      images: imageUrls
     })
     .select("id, moderation_status")
     .single();

@@ -16,6 +16,7 @@ export function PublishForm({ channels, tags }: { channels: Channel[]; tags: Tag
   const [type, setType] = useState("note");
   const [channelSlug, setChannelSlug] = useState("life");
   const [selectedTags, setSelectedTags] = useState<string[]>(["#新加坡生活"]);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [submitState, setSubmitState] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
 
@@ -36,6 +37,27 @@ export function PublishForm({ channels, tags }: { channels: Channel[]; tags: Tag
     setSubmitState("submitting");
     setMessage("");
 
+    let imageUrls: string[] = [];
+
+    if (imageFiles.length) {
+      const formData = new FormData();
+      imageFiles.forEach((file) => formData.append("images", file));
+
+      const uploadResponse = await fetch("/api/uploads/images", {
+        method: "POST",
+        body: formData
+      });
+      const uploadResult = await uploadResponse.json();
+
+      if (!uploadResponse.ok) {
+        setSubmitState("error");
+        setMessage(uploadResult.error ?? "图片上传失败，请稍后再试。");
+        return;
+      }
+
+      imageUrls = uploadResult.urls ?? [];
+    }
+
     const response = await fetch("/api/infos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -47,7 +69,8 @@ export function PublishForm({ channels, tags }: { channels: Channel[]; tags: Tag
         locationText: location,
         infoType: type,
         channelSlug,
-        tags: selectedTags
+        tags: selectedTags,
+        imageUrls
       })
     });
 
@@ -69,6 +92,7 @@ export function PublishForm({ channels, tags }: { channels: Channel[]; tags: Tag
     setType("note");
     setChannelSlug("life");
     setSelectedTags(["#新加坡生活"]);
+    setImageFiles([]);
   }
 
   return (
@@ -77,7 +101,7 @@ export function PublishForm({ channels, tags }: { channels: Channel[]; tags: Tag
       {submitState === "error" && <div className="rounded-lg bg-rose-50 p-4 text-sm font-medium text-rose-700">{message}</div>}
       <input value={title} onChange={(event) => setTitle(event.target.value)} required placeholder="标题" className="w-full rounded-lg border border-slate-200 bg-white px-3 py-3 outline-brand" />
       <textarea value={content} onChange={(event) => setContent(event.target.value)} required rows={7} placeholder="正文，写清楚地点、价格、条件和真实情况" className="w-full rounded-lg border border-slate-200 bg-white px-3 py-3 outline-brand" />
-      <ImageUploader />
+      <ImageUploader files={imageFiles} onChange={setImageFiles} disabled={submitState === "submitting"} />
       <div className="grid gap-3 md:grid-cols-3">
         <input value={contact} onChange={(event) => setContact(event.target.value)} placeholder="联系方式" className="rounded-lg border border-slate-200 bg-white px-3 py-3 outline-brand" />
         <input value={price} onChange={(event) => setPrice(event.target.value)} placeholder="价格" className="rounded-lg border border-slate-200 bg-white px-3 py-3 outline-brand" />

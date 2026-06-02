@@ -13,12 +13,23 @@ export default async function InfoPage({ params }: { params: { id: string } }) {
   const channel = info.channel ?? channelById(info.channel_id);
   const tags = info.tags?.length ? info.tags : tagsByIds(info.tag_ids);
   const coverSrc = info.cover_url || `/api/covers/${info.id}`;
+  const extraImages = info.images.filter((image) => image !== coverSrc);
 
   return (
     <article className="space-y-5 px-4 py-6 md:px-8">
       <PageViewTracker path={`/infos/${params.id}`} targetType="info" targetId={info.id} />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={coverSrc} alt="" className="max-h-[560px] w-full rounded-lg object-cover shadow-sm" />
+      {extraImages.length ? (
+        <div className="grid grid-cols-3 gap-2 md:grid-cols-5">
+          {extraImages.map((image) => (
+            <div key={image} className="aspect-square overflow-hidden rounded-lg bg-slate-100">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={image} alt="" className="h-full w-full object-cover" />
+            </div>
+          ))}
+        </div>
+      ) : null}
       <header className="space-y-3">
         <div className="flex items-center gap-2">
           <InfoTypeBadge type={info.info_type} />

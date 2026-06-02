@@ -29,6 +29,24 @@ export function getSupabaseServerClient() {
   );
 }
 
+export function getSupabaseServerClientWithAuth(accessToken: string) {
+  if (!hasSupabaseEnv) return null;
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      auth: {
+        persistSession: false
+      },
+      global: {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }
+    }
+  );
+}
+
 export function getSupabaseServiceClient() {
   if (!hasSupabaseServiceEnv) return null;
   return createClient(

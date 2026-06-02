@@ -1,6 +1,7 @@
 "use client";
 
 import type { Info } from "@/types";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Check, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -15,9 +16,16 @@ export function ModerationItem({ info }: { info: Info }) {
     setStatus(moderationStatus === "approved" ? "approving" : "rejecting");
     setMessage("");
 
+    const supabase = getSupabaseBrowserClient();
+    const { data } = supabase ? await supabase.auth.getSession() : { data: { session: null } };
+    const accessToken = data.session?.access_token;
+
     const response = await fetch(`/api/admin/infos/${info.id}/moderation`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
+      },
       body: JSON.stringify({ moderationStatus })
     });
     const result = await response.json();
