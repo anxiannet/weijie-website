@@ -2,7 +2,7 @@
 
 ## profiles
 
-用户资料。`role` 可为 `user`、`admin`、`creator`。后台页面要求未来接入时校验 `role = admin`。
+用户资料。`nickname`、`avatar_url`、`bio`、`location` 用于 `/me` 展示和编辑；`role` 可为 `user`、`admin`、`creator`。后台页面通过服务端读取当前 profile，并要求 `role = admin`。
 
 ## channels
 

@@ -1,4 +1,4 @@
-import type { Channel, Comment, Info, Tag } from "@/types";
+import type { Channel, Comment, Conversation, GroupChat, GroupMember, GroupMessage, Info, Message, Profile, Tag } from "@/types";
 
 export const channels: Channel[] = [
   { id: "ch-rental", name: "租房", slug: "rental", description: "新加坡租房、室友、合同与避坑经验。", icon: "Home", sort_order: 1 },
@@ -40,6 +40,12 @@ export const tags: Tag[] = tagSeed.map(([name, slug, channel_id, featured], inde
 
 const t = (slug: string) => `tag-${slug}`;
 const now = (day: number) => new Date(Date.UTC(2026, 4, day, 8, 0, 0)).toISOString();
+
+export const profiles: Profile[] = [
+  { id: "profile-admin", nickname: "维界编辑", avatar_url: null, role: "admin" },
+  { id: "profile-seed", nickname: "本地发布者", avatar_url: null, role: "creator" },
+  { id: "profile-demo", nickname: "体验用户", avatar_url: null, role: "user" }
+];
 
 const infoSeed: Array<[string, string, string, string, string, string[], string?, string?, string?]> = [
   ["The Floravale 普通房出租", "rental", "ch-rental", "rental", "The Floravale 普通房，近 Pioneer MRT，适合 NTU 学生。包网络，可煮，房东友好。", [t("ntu-rental"), t("pioneer"), t("common-room")], "S$950/月", "Pioneer", "WhatsApp: 8xxx xxxx"],
@@ -94,6 +100,9 @@ export const infos: Info[] = infoSeed.map(([title, source, channel_id, info_type
   cover_url: index % 3 === 0 ? `https://images.unsplash.com/photo-${["1560448204-e02f11c3d0e2", "1546069901-ba9599a7e63c", "1521791136064-7986c2920216"][index % 3]}?auto=format&fit=crop&w=900&q=80` : null,
   images: [],
   contact_text: contact_text ?? null,
+  contact_visibility: contact_text ? (index % 4 === 0 ? "public" : "private") : "private",
+  contact_note: contact_text ? "可先通过维界私信说明需求。" : null,
+  allow_messages: true,
   price_text: price_text ?? null,
   location_text: location_text ?? null,
   location_name: title.includes("The Floravale") ? "The Floravale" : location_text ?? null,
@@ -118,4 +127,99 @@ for (const tag of tags) {
 export const comments: Comment[] = [
   { id: "comment-1", info_id: "info-01", author_id: "profile-seed", content: "请问可以短租两个月吗？", moderation_status: "approved", created_at: now(29) },
   { id: "comment-2", info_id: "info-14", author_id: "profile-seed", content: "Serena 接机很准时，行李多也能放。", moderation_status: "approved", created_at: now(30) }
+];
+
+export const conversations: Conversation[] = [
+  {
+    id: "conversation-1",
+    info_id: "info-01",
+    publisher_id: "profile-seed",
+    initiator_id: "profile-demo",
+    last_message: "我想了解 7 月入住是否方便。",
+    last_message_at: now(31),
+    publisher_unread_count: 1,
+    initiator_unread_count: 0,
+    created_at: now(30),
+    updated_at: now(31),
+    info: infos.find((info) => info.id === "info-01"),
+    publisher: profiles.find((profile) => profile.id === "profile-seed"),
+    initiator: profiles.find((profile) => profile.id === "profile-demo")
+  }
+];
+
+export const messages: Message[] = [
+  {
+    id: "message-1",
+    conversation_id: "conversation-1",
+    sender_id: "profile-demo",
+    receiver_id: "profile-seed",
+    body: "你好，请问这个普通房 7 月可以入住吗？我一个人，预算 1000 左右。",
+    message_type: "text",
+    created_at: now(30),
+    read_at: now(31)
+  },
+  {
+    id: "message-2",
+    conversation_id: "conversation-1",
+    sender_id: "profile-seed",
+    receiver_id: "profile-demo",
+    body: "可以先看房，水电网和空调规则我可以发你详细说明。",
+    message_type: "text",
+    created_at: now(31),
+    read_at: null
+  }
+];
+
+export const groupChats: GroupChat[] = [
+  {
+    id: "group-ntu-rental",
+    title: "NTU 租房互助",
+    description: "围绕 NTU 周边看房、合租、合同和入住时间的多人沟通。",
+    cover_url: null,
+    group_type: "rental",
+    tag_id: t("ntu-rental"),
+    channel_id: "ch-rental",
+    creator_id: "profile-seed",
+    join_policy: "open",
+    status: "active",
+    member_count: 18,
+    message_count: 2,
+    created_at: now(25),
+    updated_at: now(31),
+    tag: tags.find((tag) => tag.id === t("ntu-rental")),
+    channel: channels.find((channel) => channel.id === "ch-rental"),
+    infos: infos.filter((info) => ["info-01", "info-03", "info-28"].includes(info.id))
+  },
+  {
+    id: "group-weekend-dumplings",
+    title: "周末包饺子活动",
+    description: "适合活动报名、食材分工和地点确认。",
+    cover_url: null,
+    group_type: "event",
+    tag_id: t("dumplings"),
+    channel_id: "ch-events",
+    creator_id: "profile-seed",
+    join_policy: "open",
+    status: "active",
+    member_count: 9,
+    message_count: 1,
+    created_at: now(26),
+    updated_at: now(31),
+    tag: tags.find((tag) => tag.id === t("dumplings")),
+    channel: channels.find((channel) => channel.id === "ch-events"),
+    infos: infos.filter((info) => ["info-13", "info-11", "info-12"].includes(info.id))
+  }
+];
+
+export const groupMembers: GroupMember[] = [
+  { id: "group-member-1", group_id: "group-ntu-rental", user_id: "profile-seed", member_role: "owner", status: "active", joined_at: now(25), last_read_at: now(31), muted: false, profile: profiles[1] },
+  { id: "group-member-2", group_id: "group-ntu-rental", user_id: "profile-demo", member_role: "member", status: "active", joined_at: now(27), last_read_at: now(31), muted: false, profile: profiles[2] },
+  { id: "group-member-3", group_id: "group-weekend-dumplings", user_id: "profile-seed", member_role: "owner", status: "active", joined_at: now(26), last_read_at: now(31), muted: false, profile: profiles[1] },
+  { id: "group-member-4", group_id: "group-weekend-dumplings", user_id: "profile-demo", member_role: "member", status: "active", joined_at: now(28), last_read_at: now(31), muted: false, profile: profiles[2] }
+];
+
+export const groupMessages: GroupMessage[] = [
+  { id: "group-message-1", group_id: "group-ntu-rental", sender_id: "profile-seed", body: "大家可以把预算、入住时间和区域偏好写清楚，方便互相匹配。", message_type: "text", created_at: now(30), deleted_at: null, sender: profiles[1] },
+  { id: "group-message-2", group_id: "group-ntu-rental", sender_id: "profile-demo", body: "我想找 Pioneer 附近普通房，7 月入住。", message_type: "text", created_at: now(31), deleted_at: null, sender: profiles[2] },
+  { id: "group-message-3", group_id: "group-weekend-dumplings", sender_id: "profile-seed", body: "这周六下午确认地点后会同步食材清单。", message_type: "text", created_at: now(31), deleted_at: null, sender: profiles[1] }
 ];

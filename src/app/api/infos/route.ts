@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { classifyInfo } from "@/lib/classifier/classifyInfo";
+import { createGroupChat } from "@/lib/groups/createGroupChat";
 import { getSupabaseServiceClient, hasSupabaseEnv } from "@/lib/supabase/client";
 import { ensureProfile } from "@/lib/supabase/profile";
 import { getSupabaseCookieClient } from "@/lib/supabase/server";
@@ -22,6 +23,10 @@ type PublishBody = {
   title?: string;
   content?: string;
   contactText?: string;
+  contactVisibility?: "public" | "login_required" | "verified_only" | "private";
+  contactNote?: string;
+  allowMessages?: boolean;
+  allowGroupChat?: boolean;
   priceText?: string;
   locationText?: string;
   infoType?: string;
@@ -75,6 +80,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       id: `mock-${Date.now()}`,
       moderationStatus: "pending",
+      groupId: body.allowGroupChat ? `mock-group-${Date.now()}` : null,
       mode: "mock"
     });
   }
@@ -118,6 +124,9 @@ export async function POST(request: Request) {
       content,
       info_type: infoType,
       contact_text: body.contactText?.trim() || null,
+      contact_visibility: body.contactVisibility ?? "private",
+      contact_note: body.contactNote?.trim() || null,
+      allow_messages: body.allowMessages ?? true,
       price_text: body.priceText?.trim() || null,
       location_text: location?.name ?? body.locationText?.trim() ?? null,
       location_name: location?.name ?? null,
@@ -170,9 +179,24 @@ export async function POST(request: Request) {
     }
   }
 
+  let groupId: string | null = null;
+  if (body.allowGroupChat) {
+    const group = await createGroupChat({
+      title: `${title} 讨论群`,
+      description: "围绕这条信息的多人沟通群聊。",
+      tagId: undefined,
+      channelId: channel.id,
+      creatorId: authData.user.id,
+      initialInfoIds: [createdInfo.id],
+      groupType: infoType === "event" ? "event" : infoType === "rental" ? "rental" : "temporary"
+    });
+    groupId = group.id;
+  }
+
   return NextResponse.json({
     id: createdInfo.id,
     moderationStatus: createdInfo.moderation_status,
+    groupId,
     mode: "supabase"
   });
 }

@@ -1,20 +1,25 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { CommentList } from "@/components/CommentList";
+import { ContactBox } from "@/components/ContactBox";
 import { InfoTypeBadge } from "@/components/InfoTypeBadge";
 import { PageViewTracker } from "@/components/PageViewTracker";
+import { RelatedGroupCard } from "@/components/RelatedGroupCard";
 import { ReportButton } from "@/components/ReportButton";
 import { SaveButton } from "@/components/SaveButton";
 import { TagBadge } from "@/components/TagBadge";
-import { channelById, getInfo, getInfoComments, isInfoSavedByCurrentUser, tagsByIds } from "@/lib/data";
+import { channelById, getInfo, getInfoComments, getRelatedGroupsForInfo, isInfoSavedByCurrentUser, tagsByIds } from "@/lib/data";
+import { getCurrentUser } from "@/lib/supabase/server";
 
 export default async function InfoPage({ params }: { params: { id: string } }) {
-  const [info, comments, isSaved] = await Promise.all([
+  const [info, comments, isSaved, currentUser] = await Promise.all([
     getInfo(params.id),
     getInfoComments(params.id),
-    isInfoSavedByCurrentUser(params.id)
+    isInfoSavedByCurrentUser(params.id),
+    getCurrentUser()
   ]);
   if (!info) notFound();
+  const relatedGroups = await getRelatedGroupsForInfo(info.id);
   const channel = info.channel ?? channelById(info.channel_id);
   const tags = info.tags?.length ? info.tags : tagsByIds(info.tag_ids);
   const coverSrc = info.cover_url || `/api/covers/${info.id}`;
@@ -57,8 +62,17 @@ export default async function InfoPage({ params }: { params: { id: string } }) {
             </Link>
           ) : info.location_text ?? "新加坡"}
         </p>
-        <p><span className="text-slate-500">联系方式：</span>{info.contact_text ?? "作者未公开"}</p>
+        <p><span className="text-slate-500">联系：</span>{info.contact_visibility === "public" ? info.contact_text ?? "作者未填写" : "站内私信优先"}</p>
       </section>
+      <ContactBox info={info} currentUserId={currentUser?.id} />
+      {relatedGroups.length ? (
+        <section className="space-y-3">
+          <h2 className="font-semibold">相关群聊</h2>
+          <div className="grid gap-3 md:grid-cols-2">
+            {relatedGroups.map((group) => <RelatedGroupCard key={group.id} group={group} />)}
+          </div>
+        </section>
+      ) : null}
       {info.location_name ? (
         <Link href={`/place/${placeId}`} className="block rounded-lg bg-white p-4 shadow-sm ring-1 ring-slate-100">
           <p className="font-semibold text-slate-900">📍 {info.location_name}</p>

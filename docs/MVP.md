@@ -12,10 +12,10 @@ Channel -> Tag -> Info
 - `/channels/[slug]`：频道页，展示频道简介、热门标签和最新信息。
 - `/tags/[slug]`：标签页，展示标签说明、信息数量和相关信息。
 - `/infos/[id]`：信息详情，展示正文、图片、频道、标签、价格、地点、联系方式、评论、收藏和举报入口。
-- `/publish`：发布信息，支持规则归类和标签建议。
+- `/publish`：发布信息，支持图片、地点选择、规则归类和标签建议；登录用户发布后进入待审核。
 - `/search`：搜索 tags、infos、channels，并记录搜索日志。
-- `/me`：资料、我的信息、收藏、评论占位。
-- `/login`：Supabase Auth 登录入口占位。
+- `/me`：展示当前用户资料、我的信息、收藏、评论，并可编辑昵称、头像 URL、简介和位置。
+- `/login`：Supabase Auth Magic Link 邮箱登录入口。
 - `/admin`：后台仪表盘。
 - `/admin/moderation`：审核中心。
 - `/admin/analytics`：搜索和访问数据监控。

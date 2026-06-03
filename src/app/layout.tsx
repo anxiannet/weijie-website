@@ -12,7 +12,7 @@ const nav = [
   { href: "/", label: "首页", icon: Home },
   { href: "/search", label: "搜索", icon: Search },
   { href: "/publish", label: "发布", icon: Plus, primary: true },
-  { href: "/me", label: "消息", icon: Bell },
+  { href: "/messages", label: "消息", icon: Bell },
   { href: "/me", label: "我的", icon: UserRound }
 ];
 

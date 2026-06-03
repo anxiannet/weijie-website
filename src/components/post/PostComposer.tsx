@@ -17,6 +17,10 @@ type Draft = {
   title: string;
   content: string;
   contact: string;
+  contactVisibility: "public" | "login_required" | "verified_only" | "private";
+  contactNote: string;
+  allowMessages: boolean;
+  allowGroupChat: boolean;
   price: string;
   type: string;
   channelSlug: string;
@@ -28,6 +32,10 @@ const emptyDraft: Draft = {
   title: "",
   content: "",
   contact: "",
+  contactVisibility: "private",
+  contactNote: "",
+  allowMessages: true,
+  allowGroupChat: false,
   price: "",
   type: "note",
   channelSlug: "life",
@@ -110,6 +118,10 @@ export function PostComposer({ channels, tags }: { channels: Channel[]; tags: Ta
         title: draft.title,
         content: draft.content,
         contactText: draft.contact,
+        contactVisibility: draft.contactVisibility,
+        contactNote: draft.contactNote,
+        allowMessages: draft.allowMessages,
+        allowGroupChat: draft.allowGroupChat,
         priceText: draft.price,
         locationText: draft.selectedLocation?.name ?? "",
         location: draft.selectedLocation,
@@ -189,6 +201,41 @@ export function PostComposer({ channels, tags }: { channels: Channel[]; tags: Ta
         />
       </div>
 
+      <section className="space-y-3 rounded-lg bg-white p-4 ring-1 ring-slate-100">
+        <div className="grid gap-3 md:grid-cols-2">
+          <label className="space-y-2 text-sm font-medium">
+            <span>联系方式显示方式</span>
+            <select
+              value={draft.contactVisibility}
+              onChange={(event) => updateDraft({ contactVisibility: event.target.value as Draft["contactVisibility"] })}
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-3 outline-brand"
+            >
+              <option value="private">隐藏联系方式，仅私信联系</option>
+              <option value="login_required">登录后可见</option>
+              <option value="public">公开显示</option>
+              <option value="verified_only">认证用户可见</option>
+            </select>
+          </label>
+          <label className="space-y-2 text-sm font-medium">
+            <span>联系备注</span>
+            <input
+              value={draft.contactNote}
+              onChange={(event) => updateDraft({ contactNote: event.target.value })}
+              placeholder="例如先说明预算、时间或人数"
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-3 outline-brand"
+            />
+          </label>
+        </div>
+        <label className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 p-3 text-sm">
+          <span>允许维界私信联系</span>
+          <input type="checkbox" checked={draft.allowMessages} onChange={(event) => updateDraft({ allowMessages: event.target.checked })} className="h-5 w-5 accent-brand" />
+        </label>
+        <label className="flex items-start justify-between gap-3 rounded-lg bg-mist p-3 text-sm leading-6 text-slate-700">
+          <span>适合多人沟通的内容可以开启群聊，例如活动、合租、拼车、团购。</span>
+          <input type="checkbox" checked={draft.allowGroupChat} onChange={(event) => updateDraft({ allowGroupChat: event.target.checked })} className="mt-1 h-5 w-5 accent-brand" />
+        </label>
+      </section>
+
       <div className="grid gap-4 md:grid-cols-2">
         <div>
           <label className="mb-2 block text-sm font-medium">频道</label>
@@ -207,7 +254,7 @@ export function PostComposer({ channels, tags }: { channels: Channel[]; tags: Ta
         <TagSelector tags={visibleTags} selected={draft.selectedTags} onChange={(selectedTags) => updateDraft({ selectedTags })} />
       </div>
 
-      <p className="rounded-lg bg-mist p-3 text-sm leading-6 text-slate-700">维界允许合理展示联系方式，但请发布真实、合法、对他人有帮助的信息。</p>
+      <p className="rounded-lg bg-mist p-3 text-sm leading-6 text-slate-700">维界允许合理展示联系方式，默认隐藏可减少骚扰。请发布真实、合法、对他人有帮助的信息。</p>
       <button disabled={submitState === "submitting"} className="w-full rounded-full bg-brand px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
         {submitState === "submitting" ? "提交中" : "提交审核"}
       </button>

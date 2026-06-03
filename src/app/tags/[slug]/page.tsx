@@ -2,11 +2,13 @@ import { notFound } from "next/navigation";
 import { EmptyState } from "@/components/EmptyState";
 import { InfoCard } from "@/components/InfoCard";
 import { PageViewTracker } from "@/components/PageViewTracker";
-import { getTag, getTagInfos } from "@/lib/data";
+import { RelatedGroupCard } from "@/components/RelatedGroupCard";
+import { getRelatedGroupsForTag, getTag, getTagInfos } from "@/lib/data";
 
 export default async function TagPage({ params }: { params: { slug: string } }) {
   const [tag, infos] = await Promise.all([getTag(params.slug), getTagInfos(params.slug)]);
   if (!tag) notFound();
+  const groups = await getRelatedGroupsForTag(tag.id);
 
   return (
     <div className="space-y-5 px-4 py-6 md:px-8">
@@ -17,6 +19,14 @@ export default async function TagPage({ params }: { params: { slug: string } }) 
         <p className="mt-2 leading-7 text-slate-600">{tag.description}</p>
         <p className="mt-3 text-sm font-medium text-brand">{infos.length} 条信息</p>
       </header>
+      {groups.length ? (
+        <section className="space-y-3">
+          <h2 className="font-semibold">该标签下的群聊</h2>
+          <div className="grid gap-3 md:grid-cols-2">
+            {groups.map((group) => <RelatedGroupCard key={group.id} group={group} />)}
+          </div>
+        </section>
+      ) : null}
       {infos.length ? (
         <section className="columns-2 gap-3 space-y-3 md:columns-3">
           {infos.map((info) => <InfoCard key={info.id} info={info} />)}

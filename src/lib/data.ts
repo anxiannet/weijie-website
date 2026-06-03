@@ -1,12 +1,24 @@
 import { unstable_noStore as noStore } from "next/cache";
-import { channels, comments, infos, tags } from "@/data/mockData";
+import { channels, comments, conversations, groupChats, groupMembers, groupMessages, infos, messages, tags } from "@/data/mockData";
 import { getSupabaseServerClient, getSupabaseServiceClient } from "@/lib/supabase/client";
 import { getSupabaseCookieClient } from "@/lib/supabase/server";
-import type { Channel, Comment, Info, Tag } from "@/types";
+import type { Channel, Comment, Conversation, GroupChat, GroupMember, GroupMessage, Info, Message, MessageReport, GroupReport, Tag } from "@/types";
 
 type InfoRow = Omit<Info, "tag_ids" | "channel" | "tags"> & {
   info_tags?: Array<{ tag_id: string | null; tags?: Tag | null }>;
   channels?: Channel | null;
+};
+
+type GroupChatRow = GroupChat & {
+  tags?: Tag | null;
+  channels?: Channel | null;
+  group_infos?: Array<{ info_id: string | null; infos?: InfoRow | null }>;
+};
+
+type ConversationRow = Conversation & {
+  infos?: InfoRow | null;
+  publisher?: { id: string; nickname: string | null; avatar_url?: string | null; role?: string } | null;
+  initiator?: { id: string; nickname: string | null; avatar_url?: string | null; role?: string } | null;
 };
 
 let cachedChannels: Channel[] = channels;
@@ -33,6 +45,25 @@ function withMockRelations(info: Info): Info {
     ...info,
     channel: channels.find((channel) => channel.id === info.channel_id),
     tags: info.tag_ids.map((id) => tags.find((tag) => tag.id === id)).filter(Boolean) as Tag[]
+  };
+}
+
+function mapGroup(row: GroupChatRow): GroupChat {
+  const linkedInfos = row.group_infos?.map((item) => item.infos ? mapInfo(item.infos) : null).filter(Boolean) as Info[] | undefined;
+  return {
+    ...row,
+    tag: row.tags ?? row.tag,
+    channel: row.channels ?? row.channel,
+    infos: linkedInfos ?? row.infos ?? []
+  };
+}
+
+function mapConversation(row: ConversationRow): Conversation {
+  return {
+    ...row,
+    info: row.infos ? mapInfo(row.infos) : row.info ?? null,
+    publisher: row.publisher ? { id: row.publisher.id, nickname: row.publisher.nickname, avatar_url: row.publisher.avatar_url, role: "user" } : row.publisher ?? null,
+    initiator: row.initiator ? { id: row.initiator.id, nickname: row.initiator.nickname, avatar_url: row.initiator.avatar_url, role: "user" } : row.initiator ?? null
   };
 }
 
@@ -250,6 +281,306 @@ export async function getInfo(id: string) {
     warnAndFallback("info", error);
     const info = infos.find((item) => item.id === id);
     return info ? withMockRelations(info) : null;
+  }
+}
+
+export async function getRelatedGroupsForInfo(infoId: string) {
+  noStore();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) return groupChats.filter((group) => group.infos?.some((info) => info.id === infoId));
+
+  try {
+    const { data, error } = await supabase
+      .from("group_chats")
+      .select("*, tags(*), channels(*), group_infos!inner(info_id, infos(*, info_tags(tag_id, tags(*)), channels(*)))")
+      .eq("status", "active")
+      .eq("group_infos.info_id", infoId)
+      .order("member_count", { ascending: false })
+      .limit(6);
+    if (error) throw error;
+    return ((data ?? []) as GroupChatRow[]).map(mapGroup);
+  } catch (error) {
+    warnAndFallback("related groups for info", error);
+    return groupChats.filter((group) => group.infos?.some((info) => info.id === infoId));
+  }
+}
+
+export async function getRelatedGroupsForTag(tagId: string) {
+  noStore();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) return groupChats.filter((group) => group.tag_id === tagId);
+
+  try {
+    const { data, error } = await supabase
+      .from("group_chats")
+      .select("*, tags(*), channels(*), group_infos(info_id, infos(*, info_tags(tag_id, tags(*)), channels(*)))")
+      .eq("status", "active")
+      .eq("tag_id", tagId)
+      .order("member_count", { ascending: false })
+      .limit(12);
+    if (error) throw error;
+    return ((data ?? []) as GroupChatRow[]).map(mapGroup);
+  } catch (error) {
+    warnAndFallback("related groups for tag", error);
+    return groupChats.filter((group) => group.tag_id === tagId);
+  }
+}
+
+export async function getGroups(filters?: { channelId?: string; tagId?: string }) {
+  noStore();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    return groupChats.filter((group) => {
+      if (filters?.channelId && group.channel_id !== filters.channelId) return false;
+      if (filters?.tagId && group.tag_id !== filters.tagId) return false;
+      return group.status === "active";
+    });
+  }
+
+  try {
+    let query = supabase
+      .from("group_chats")
+      .select("*, tags(*), channels(*), group_infos(info_id, infos(*, info_tags(tag_id, tags(*)), channels(*)))")
+      .eq("status", "active")
+      .order("member_count", { ascending: false });
+    if (filters?.channelId) query = query.eq("channel_id", filters.channelId);
+    if (filters?.tagId) query = query.eq("tag_id", filters.tagId);
+    const { data, error } = await query.limit(30);
+    if (error) throw error;
+    return ((data ?? []) as GroupChatRow[]).map(mapGroup);
+  } catch (error) {
+    warnAndFallback("groups", error);
+    return groupChats;
+  }
+}
+
+export async function getMyGroups() {
+  noStore();
+  const supabase = getSupabaseCookieClient();
+  if (!supabase) return groupChats.slice(0, 2);
+
+  try {
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError || !authData.user) return [];
+    const { data, error } = await supabase
+      .from("group_members")
+      .select("group_chats(*, tags(*), channels(*), group_infos(info_id, infos(*, info_tags(tag_id, tags(*)), channels(*))))")
+      .eq("user_id", authData.user.id)
+      .eq("status", "active");
+    if (error) throw error;
+    return (data ?? []).map((row) => mapGroup(row.group_chats as unknown as GroupChatRow)).filter(Boolean);
+  } catch (error) {
+    warnAndFallback("my groups", error);
+    return [];
+  }
+}
+
+export async function getGroup(groupId: string) {
+  noStore();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) return groupChats.find((group) => group.id === groupId) ?? null;
+
+  try {
+    const { data, error } = await supabase
+      .from("group_chats")
+      .select("*, tags(*), channels(*), group_infos(info_id, infos(*, info_tags(tag_id, tags(*)), channels(*)))")
+      .eq("id", groupId)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? mapGroup(data as GroupChatRow) : null;
+  } catch (error) {
+    warnAndFallback("group", error);
+    return groupChats.find((group) => group.id === groupId) ?? null;
+  }
+}
+
+export async function getGroupMembers(groupId: string) {
+  noStore();
+  const supabase = getSupabaseCookieClient();
+  if (!supabase) return groupMembers.filter((member) => member.group_id === groupId);
+
+  try {
+    const { data, error } = await supabase
+      .from("group_members")
+      .select("*, profile:profiles(*)")
+      .eq("group_id", groupId)
+      .order("joined_at", { ascending: true });
+    if (error) throw error;
+    return (data ?? []) as GroupMember[];
+  } catch (error) {
+    warnAndFallback("group members", error);
+    return [];
+  }
+}
+
+export async function getGroupMessagesForPage(groupId: string) {
+  noStore();
+  const supabase = getSupabaseCookieClient();
+  if (!supabase) return groupMessages.filter((message) => message.group_id === groupId);
+
+  try {
+    const { data, error } = await supabase
+      .from("group_messages")
+      .select("*, sender:profiles(*)")
+      .eq("group_id", groupId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: true })
+      .limit(100);
+    if (error) throw error;
+    return (data ?? []) as GroupMessage[];
+  } catch (error) {
+    warnAndFallback("group messages", error);
+    return [];
+  }
+}
+
+export async function getMyConversations() {
+  noStore();
+  const supabase = getSupabaseCookieClient();
+  if (!supabase) return conversations;
+
+  try {
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError || !authData.user) return [];
+    const { data, error } = await supabase
+      .from("conversations")
+      .select("*, infos(*, info_tags(tag_id, tags(*)), channels(*)), publisher:profiles!conversations_publisher_id_fkey(id, nickname, avatar_url), initiator:profiles!conversations_initiator_id_fkey(id, nickname, avatar_url)")
+      .or(`publisher_id.eq.${authData.user.id},initiator_id.eq.${authData.user.id}`)
+      .order("last_message_at", { ascending: false, nullsFirst: false });
+    if (error) throw error;
+    return ((data ?? []) as ConversationRow[]).map(mapConversation);
+  } catch (error) {
+    warnAndFallback("conversations", error);
+    return [];
+  }
+}
+
+export async function getConversation(conversationId: string) {
+  noStore();
+  const supabase = getSupabaseCookieClient();
+  if (!supabase) return conversations.find((conversation) => conversation.id === conversationId) ?? null;
+
+  try {
+    const { data, error } = await supabase
+      .from("conversations")
+      .select("*, infos(*, info_tags(tag_id, tags(*)), channels(*)), publisher:profiles!conversations_publisher_id_fkey(id, nickname, avatar_url), initiator:profiles!conversations_initiator_id_fkey(id, nickname, avatar_url)")
+      .eq("id", conversationId)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? mapConversation(data as ConversationRow) : null;
+  } catch (error) {
+    warnAndFallback("conversation", error);
+    return null;
+  }
+}
+
+export async function getConversationMessages(conversationId: string) {
+  noStore();
+  const supabase = getSupabaseCookieClient();
+  if (!supabase) return messages.filter((message) => message.conversation_id === conversationId);
+
+  try {
+    const { data, error } = await supabase
+      .from("messages")
+      .select("*")
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+    return (data ?? []) as Message[];
+  } catch (error) {
+    warnAndFallback("messages", error);
+    return [];
+  }
+}
+
+export async function getMessagingCounts() {
+  noStore();
+  const supabase = getSupabaseCookieClient();
+  if (!supabase) return { privateUnread: 1, myGroups: groupChats.length };
+
+  try {
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError || !authData.user) return { privateUnread: 0, myGroups: 0 };
+    const userId = authData.user.id;
+    const [conversationResult, groupResult] = await Promise.all([
+      supabase
+        .from("conversations")
+        .select("publisher_id, initiator_id, publisher_unread_count, initiator_unread_count")
+        .or(`publisher_id.eq.${userId},initiator_id.eq.${userId}`),
+      supabase.from("group_members").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("status", "active")
+    ]);
+    if (conversationResult.error) throw conversationResult.error;
+    if (groupResult.error) throw groupResult.error;
+    const privateUnread = (conversationResult.data ?? []).reduce((sum, row) => {
+      if (row.publisher_id === userId) return sum + (row.publisher_unread_count ?? 0);
+      if (row.initiator_id === userId) return sum + (row.initiator_unread_count ?? 0);
+      return sum;
+    }, 0);
+    return { privateUnread, myGroups: groupResult.count ?? 0 };
+  } catch (error) {
+    warnAndFallback("messaging counts", error);
+    return { privateUnread: 0, myGroups: 0 };
+  }
+}
+
+export async function getAdminMessageDashboard() {
+  noStore();
+  const supabase = getSupabaseCookieClient();
+  if (!supabase) {
+    return {
+      recentMessages: messages,
+      reports: [] as MessageReport[],
+      frequentUsers: [{ user_id: "profile-demo", count: messages.length }],
+      blockedUsers: [] as Array<{ blocked_id: string; count: number }>
+    };
+  }
+
+  try {
+    const [recentMessages, reports, frequentUsers, blockedUsers] = await Promise.all([
+      supabase.from("messages").select("*").order("created_at", { ascending: false }).limit(30),
+      supabase.from("message_reports").select("*, message:messages(*)").order("created_at", { ascending: false }).limit(30),
+      supabase.from("messages").select("sender_id").gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()).limit(300),
+      supabase.from("blocked_users").select("blocked_id").limit(300)
+    ]);
+    if (recentMessages.error) throw recentMessages.error;
+    if (reports.error) throw reports.error;
+    if (frequentUsers.error) throw frequentUsers.error;
+    if (blockedUsers.error) throw blockedUsers.error;
+    return {
+      recentMessages: (recentMessages.data ?? []) as Message[],
+      reports: (reports.data ?? []) as MessageReport[],
+      frequentUsers: topCounts((frequentUsers.data ?? []).map((row) => row.sender_id).filter(Boolean) as string[], 8).map((row) => ({ user_id: row.name, count: row.value })),
+      blockedUsers: topCounts((blockedUsers.data ?? []).map((row) => row.blocked_id).filter(Boolean) as string[], 8).map((row) => ({ blocked_id: row.name, count: row.value }))
+    };
+  } catch (error) {
+    warnAndFallback("admin message dashboard", error);
+    return { recentMessages: [], reports: [], frequentUsers: [], blockedUsers: [] };
+  }
+}
+
+export async function getAdminGroupDashboard() {
+  noStore();
+  const supabase = getSupabaseCookieClient();
+  if (!supabase) return { groups: groupChats, reports: [] as GroupReport[] };
+
+  try {
+    const [groupsResult, reportsResult] = await Promise.all([
+      supabase
+        .from("group_chats")
+        .select("*, tags(*), channels(*), group_infos(info_id, infos(*, info_tags(tag_id, tags(*)), channels(*)))")
+        .order("created_at", { ascending: false })
+        .limit(50),
+      supabase.from("group_reports").select("*, group:group_chats(*), message:group_messages(*)").order("created_at", { ascending: false }).limit(50)
+    ]);
+    if (groupsResult.error) throw groupsResult.error;
+    if (reportsResult.error) throw reportsResult.error;
+    return {
+      groups: ((groupsResult.data ?? []) as GroupChatRow[]).map(mapGroup),
+      reports: (reportsResult.data ?? []) as GroupReport[]
+    };
+  } catch (error) {
+    warnAndFallback("admin group dashboard", error);
+    return { groups: [], reports: [] };
   }
 }
 

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { LogoutButton } from "@/components/LogoutButton";
 import { InfoCard } from "@/components/InfoCard";
-import { getMyComments, getMyInfos, getMySavedInfos } from "@/lib/data";
+import { ProfileEditor } from "@/components/ProfileEditor";
+import { getMessagingCounts, getMyComments, getMyInfos, getMySavedInfos } from "@/lib/data";
 import { getCurrentProfile, getCurrentUser } from "@/lib/supabase/server";
 
 export default async function MePage() {
@@ -19,21 +20,29 @@ export default async function MePage() {
     );
   }
 
-  const [profile, infos, savedInfos, comments] = await Promise.all([
+  const [profile, infos, savedInfos, comments, counts] = await Promise.all([
     getCurrentProfile(),
     getMyInfos(),
     getMySavedInfos(),
-    getMyComments()
+    getMyComments(),
+    getMessagingCounts()
   ]);
 
   return (
     <div className="space-y-5 px-4 py-6 md:px-8">
-      <section className="flex flex-wrap items-start justify-between gap-3 rounded-lg bg-white p-5 shadow-sm ring-1 ring-slate-100">
-        <div>
-          <h1 className="text-2xl font-bold">{profile?.nickname ?? user.email ?? "我的"}</h1>
-          <p className="mt-2 text-sm text-slate-600">角色：{profile?.role ?? "user"}</p>
-        </div>
+      <div className="space-y-3">
+        <ProfileEditor profile={profile} email={user.email} />
         <LogoutButton />
+      </div>
+      <section className="grid gap-3 md:grid-cols-2">
+        <Link href="/messages" className="rounded-lg bg-white p-4 shadow-sm ring-1 ring-slate-100">
+          <p className="font-semibold text-slate-900">我的私信</p>
+          <p className="mt-1 text-sm text-slate-500">{counts.privateUnread} 条未读</p>
+        </Link>
+        <Link href="/groups" className="rounded-lg bg-white p-4 shadow-sm ring-1 ring-slate-100">
+          <p className="font-semibold text-slate-900">我的群聊</p>
+          <p className="mt-1 text-sm text-slate-500">已加入 {counts.myGroups} 个群聊</p>
+        </Link>
       </section>
       <h2 className="font-semibold">我的信息</h2>
       {infos.length ? (
